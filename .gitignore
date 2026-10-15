@@ -1,0 +1,11 @@
+build/
+.agents/
+.kiro/
+.vscode/
+.idea/
+.cursor/
+.gemini/
+.codex/
+.claude/
+
+AGENTS.md

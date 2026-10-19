@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
     try {
         // Create worker pool
         WorkerPool pool(args.concurrency, args.max_hits, args.url, args.method, 
-                       args.agent_enabled, args.timeout_ms);
+                       args.agent_enabled, args.timeout_ms, args.verbose);
         g_pool = &pool;
         
         // Start the test

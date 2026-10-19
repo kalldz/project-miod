@@ -166,7 +166,7 @@ void StatisticsCollector::printRealTimeStats(const std::string& /*target*/) cons
     const char* fail_color = StatsColor::DIM;
     if (metrics_.failed_requests > 0) fail_color = StatsColor::BRIGHT_RED;
 
-    std::cout << "\r"
+    std::cout << "\n"
               << StatsColor::DIM << "[" << std::setw(5) << elapsed << "s]" << StatsColor::RESET << " "
               << StatsColor::BRIGHT_BLUE << "Req:" << StatsColor::RESET << StatsColor::BRIGHT_WHITE << std::setw(10) << metrics_.total_requests << StatsColor::RESET << " | "
               << StatsColor::BRIGHT_MAGENTA << "RPS:" << StatsColor::RESET << StatsColor::BRIGHT_YELLOW << std::setw(6) << std::fixed << std::setprecision(1) << rps << StatsColor::RESET << " | "
@@ -174,5 +174,5 @@ void StatisticsCollector::printRealTimeStats(const std::string& /*target*/) cons
               << StatsColor::BRIGHT_RED << "Fail:" << StatsColor::RESET << fail_color << std::setw(6) << metrics_.failed_requests << StatsColor::RESET << " | "
               << StatsColor::CYAN << "Success:" << StatsColor::RESET << success_color << std::setw(6) << std::fixed << std::setprecision(1) << success_rate << "%" << StatsColor::RESET << " | "
               << StatsColor::BRIGHT_CYAN << "Avg:" << StatsColor::RESET << StatsColor::BRIGHT_WHITE << std::setw(5) << std::fixed << std::setprecision(0) << avg_response << "ms" << StatsColor::RESET
-              << std::flush;
+              << std::endl;
 }

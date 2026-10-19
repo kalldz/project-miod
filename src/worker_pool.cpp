@@ -9,13 +9,15 @@ WorkerPool::WorkerPool(uint32_t concurrency,
                        const std::string& url,
                        const std::string& method,
                        bool agent_enabled,
-                       uint32_t timeout_ms)
+                       uint32_t timeout_ms,
+                       bool verbose)
     : concurrency_(concurrency),
       max_hits_(max_hits),
       url_(url),
       method_(method),
       agent_enabled_(agent_enabled),
       timeout_ms_(timeout_ms),
+    verbose_(verbose),
       running_(false),
       should_stop_(false),
       completed_requests_(0),
@@ -114,30 +116,37 @@ void WorkerPool::workerThread(int thread_id) {
         
         // Make request
         auto response = client.request(url_, method_, user_agent);
+        auto printResult = [this, &user_agent](int status_code,
+                                               const std::string& status_text,
+                                               size_t bytes_received,
+                                               long response_time_ms,
+                                               const WAFDetectionResult& waf_result) {
+            if (verbose_) {
+                std::lock_guard<std::mutex> lock(mutex_);
+                Reporter::printRealTimeResult(url_, status_code, status_text,
+                                              bytes_received, 0, response_time_ms,
+                                              user_agent, waf_result);
+            }
+        };
         
         // Update statistics
         if (response.status_code == -1) {
             // Timeout
             stats_.recordTimeout();
-            Reporter::printRealTimeResult(url_, -1, "TIMEOUT", 0, 0, 
-                                          timeout_ms_, user_agent, response.waf_result);
+            printResult(-1, "TIMEOUT", 0, timeout_ms_, response.waf_result);
         } else if (response.status_code == -2) {
             // Connection error
             stats_.recordConnectionError();
-            Reporter::printRealTimeResult(url_, -2, "CONN_ERR", 0, 0, 
-                                          response.response_time_ms, user_agent, response.waf_result);
+            printResult(-2, "CONN_ERR", 0, response.response_time_ms, response.waf_result);
         } else if (response.status_code == -3) {
             // DNS error
             stats_.recordOtherError();
-            Reporter::printRealTimeResult(url_, -3, "DNS_ERR", 0, 0, 
-                                          response.response_time_ms, user_agent, response.waf_result);
+            printResult(-3, "DNS_ERR", 0, response.response_time_ms, response.waf_result);
         } else if (response.status_code >= 500) {
             // 5xx error
             stats_.recordError5xx(response.status_code);
-            Reporter::printRealTimeResult(url_, response.status_code, 
-                                          HTTPClient::getStatusText(response.status_code),
-                                          response.content_length, 0,
-                                          response.response_time_ms, user_agent, response.waf_result);
+            printResult(response.status_code, HTTPClient::getStatusText(response.status_code),
+                        response.content_length, response.response_time_ms, response.waf_result);
         } else if (response.status_code >= 400) {
             // 4xx error
             if (response.waf_result.detected) {
@@ -145,25 +154,19 @@ void WorkerPool::workerThread(int thread_id) {
             } else {
                 stats_.recordError4xx(response.status_code);
             }
-            Reporter::printRealTimeResult(url_, response.status_code,
-                                          HTTPClient::getStatusText(response.status_code),
-                                          response.content_length, 0,
-                                          response.response_time_ms, user_agent, response.waf_result);
+            printResult(response.status_code, HTTPClient::getStatusText(response.status_code),
+                        response.content_length, response.response_time_ms, response.waf_result);
         } else if (response.success) {
             // Success
             stats_.recordSuccess(response.response_time_ms, response.content_length, 
                                0, response.status_code);
-            Reporter::printRealTimeResult(url_, response.status_code,
-                                          HTTPClient::getStatusText(response.status_code),
-                                          response.content_length, 0,
-                                          response.response_time_ms, user_agent, response.waf_result);
+            printResult(response.status_code, HTTPClient::getStatusText(response.status_code),
+                        response.content_length, response.response_time_ms, response.waf_result);
         } else {
             // Other error
             stats_.recordOtherError();
-            Reporter::printRealTimeResult(url_, response.status_code,
-                                          HTTPClient::getStatusText(response.status_code),
-                                          response.content_length, 0,
-                                          response.response_time_ms, user_agent, response.waf_result);
+            printResult(response.status_code, HTTPClient::getStatusText(response.status_code),
+                        response.content_length, response.response_time_ms, response.waf_result);
         }
         
         completed_requests_++;
@@ -183,6 +186,7 @@ void WorkerPool::progressThread() {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         
         if (!should_stop_) {
+            std::lock_guard<std::mutex> lock(mutex_);
             stats_.printRealTimeStats(url_);
         }
     }

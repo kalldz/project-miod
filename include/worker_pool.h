@@ -22,7 +22,8 @@ public:
                const std::string& url,
                const std::string& method,
                bool agent_enabled,
-               uint32_t timeout_ms);
+               uint32_t timeout_ms,
+               bool verbose);
     
     ~WorkerPool();
     
@@ -44,6 +45,7 @@ private:
     std::string method_;
     bool agent_enabled_;
     uint32_t timeout_ms_;
+    bool verbose_;
     
     std::vector<std::thread> workers_;
     std::thread progress_thread_;
